@@ -1,0 +1,7 @@
+sam build && sam local generate-event s3 put --bucket "covenants-deed-images" --key "test/milwaukee/100_2022-04-14_1311_DEED/02858053_DEED_0001.tif" | sam local invoke -e -
+
+
+sam build && sam local generate-event s3 put --bucket "covenants-deed-images" --key "test/milwaukee/100_2022-04-14_1311_DEED/02886225_DEED_0002.tif" | sam local invoke -e -
+
+# multipage (doesn't work yet)
+sam build && sam local generate-event s3 put --bucket "covenants-deed-images" --key "test/milwaukee/100_2022-04-14_1311_DEED/20428498-0.tif" | sam local invoke -e -

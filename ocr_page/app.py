@@ -5,7 +5,6 @@ import urllib.parse
 import boto3
 
 '''
-Designed to mimic actions of OCR step, but skip OCR, to avoid needing to re-OCR files that have already been OCRed.
 Folder structure:
 
 covenants-deeds-images
@@ -38,16 +37,19 @@ def load_json(bucket, key):
     return json.loads(file_content)
 
 def save_page_ocr_json(textract_response, bucket, key_parts):
+    """In this version, this function just re-writes the key parts into the correct output syntax and returns the result rather than saving a new OCR json file"""
     out_key = f"ocr/json/{key_parts['workflow']}/{key_parts['remainder']}.json"
     return out_key
 
 def save_page_text(lines, bucket, key_parts):
+    """In this version, this function just re-writes the key parts into the correct output syntax and returns the result rather than saving a new TXT file"""
     text_blob = ''
 
     out_key = f"ocr/txt/{key_parts['workflow']}/{key_parts['remainder']}.txt"
     return out_key
 
 def save_doc_stats(lines, bucket, key_parts, public_uuid):
+    """ This is the only part of the lambda that actually saves a new object to S3, mainly due to the new UUID being generated."""
     num_lines = len(lines)
     num_chars = sum([len(line['Text']) for line in lines])
 
@@ -72,7 +74,8 @@ def save_doc_stats(lines, bucket, key_parts, public_uuid):
 
 
 def lambda_handler(event, context):
-    # print("Received event: " + json.dumps(event, indent=2))
+    """Designed to mimic actions of OCR step, but skip OCR, to avoid needing to re-OCR files that have already been OCRed. The function opens a previously created OCR JSON saved to s3 and passes data about it on to the next step. This lambda is only used for DeedPageProcessorFAKEOCR, which is run to correct errors in post-OCR stages of the main DeedPageProcessor Step Function."""
+
     if 'Records' in event:
         # Get the object from a more standard put event
         bucket = event['Records'][0]['s3']['bucket']['name']
@@ -86,7 +89,7 @@ def lambda_handler(event, context):
     print(f'FAKING OCR STEP FOR {bucket} {key}')
 
     # Read from pre-existing json result, Get the text blocks
-    key = key.replace('test/milwaukee', 'raw/wi-milwaukee-county')  # Temp for testing
+    # key = key.replace('test/milwaukee', 'raw/wi-milwaukee-county')  # Temp for testing
     key_parts = re.search('(?P<status>[a-z]+)/(?P<workflow>[A-z\-]+)/(?P<remainder>.+)\.(?P<extension>[a-z]+)', key).groupdict()
     textract_json_file = save_page_ocr_json({}, bucket, key_parts)
 
@@ -98,6 +101,7 @@ def lambda_handler(event, context):
     lines = [block for block in blocks if block['BlockType'] == 'LINE']
     words = [block for block in blocks if block['BlockType'] == 'WORD']
 
+    # Generate a new UUID because you can't easily derive the old one, if it was created. This can lead to duplicate S3 objects (same file, different randomized suffix), but generally only one copy will be processed by the ingestion process since only one will have made it all the way through the process.
     public_uuid = uuid.uuid4().hex
 
     page_txt_file = save_page_text(lines, bucket, key_parts)
